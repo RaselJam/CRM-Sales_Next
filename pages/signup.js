@@ -1,12 +1,50 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { useQuery, gql } from "@apollo/client";
+import { gql, useMutation } from "@apollo/client";
 
-
+const NEW_USER = gql`
+  mutation NewUser($input: UserInput!) {
+    newUser(input: $input) {
+      id
+      name
+      lastName
+      email
+      createdAt
+    }
+  }
+`;
 
 function signup() {
-
+  const [message, setMessage] = useState();
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [newUser] = useMutation(NEW_USER);
+  const router = useRouter();
+  ///Effects :
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      if (isSuccess) {
+        router.push("/login");
+      }
+    }, 3500);
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [isSuccess]);
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setMessage((msg) =>
+        msg?.includes("successfully")
+          ? "Redirecting to Login Page ..."
+          : ""
+      );
+    }, 2000);
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [message]);
+  ///
   const formik = useFormik({
     initialValues: {
       name: "",
@@ -27,12 +65,35 @@ function signup() {
       ),
       // .min(6, "at least 6 char"),
     }),
-    onSubmit: (values) => {
-      console.log("sending ...", values);
+    onSubmit: async (values) => {
+      try {
+        const { data } = await newUser({
+          variables: {
+            input: {
+              ...values,
+            },
+          },
+        });
+        setMessage(
+          `successfully created. wellcome aboard ${data.newUser.name}`
+        );
+        setIsSuccess(true);
+      } catch (error) {
+        setMessage(error.message);
+      }
     },
   });
+  const showMessage = () => {
+    return (
+      <div className="rounded shadow-md bg-white text-center py-2 px-3 w-full my-3 max-w-sm mx-auto">
+        <p>{message}</p>
+      </div>
+    );
+  };
+
   return (
     <>
+      {message && showMessage()}
       <h1 className="text-center text-2xl text-white font-light">
         Sign Up
       </h1>
@@ -110,6 +171,7 @@ function signup() {
               </label>
               <input
                 id="password"
+                type="password"
                 placeholder="Enter Password"
                 value={formik.values.password}
                 onChange={formik.handleChange}
